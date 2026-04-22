@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gym Log 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:     #0d0d0f;
+    --card:   #131315;
+    --border: #222226;
+    --pink:   #d946ef;
+    --purple: #7e22ce;
+    --text:   #f0eee8;
+    --dim:    #555560;
+    --dimmer: #222228;
+    --today:  #a3e635;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', 'Courier New', monospace;
+    padding: 36px 40px;
+    min-height: 100vh;
+  }
+
+  /* ── header ── */
+  .header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 6px; }
+  .header h1 { font-size: 38px; font-weight: 900; color: var(--pink); letter-spacing: .06em; }
+  .header .year { font-size: 14px; color: var(--dim); letter-spacing: .2em; }
+  .sub { font-size: 10px; color: var(--dimmer); letter-spacing: .08em; margin-bottom: 28px; }
+
+  /* ── stat cards ── */
+  .cards { display: flex; gap: 10px; margin-bottom: 32px; flex-wrap: wrap; }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px 18px; flex: 1; min-width: 120px;
+  }
+  .card .lbl { font-size: 9px; color: var(--dim); letter-spacing: .15em; margin-bottom: 5px; }
+  .card .val { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 3px; }
+  .card .s   { font-size: 9px; color: var(--dimmer); }
+
+  /* ── calendar grid ── */
+  .cal-wrap { overflow-x: auto; }
+  table {
+    border-collapse: separate;
+    border-spacing: 3px;
+    min-width: 100%;
+  }
+
+  /* day-number header row */
+  thead th {
+    font-size: 9px; color: var(--dim); font-weight: 400;
+    text-align: center; padding: 0 0 6px 0; width: 28px; min-width: 28px;
+  }
+  thead th.corner { text-align: left; width: 100px; min-width: 100px; }
+
+  /* month label cells */
+  td.month-label {
+    font-size: 10px; color: var(--dim); letter-spacing: .1em;
+    padding-right: 12px; white-space: nowrap; vertical-align: middle;
+    cursor: default;
+  }
+  td.month-label.current { color: var(--text); }
+
+  /* day cells */
+  td.day {
+    width: 28px; height: 28px; border-radius: 4px;
+    background: var(--dimmer); border: 1px solid transparent;
+    cursor: pointer; transition: background .12s, transform .08s, border-color .12s;
+    text-align: center; vertical-align: middle;
+    font-size: 8px; color: transparent; /* hide day number by default */
+    user-select: none;
+  }
+  td.day:hover        { border-color: var(--pink); transform: scale(1.12); z-index: 1; position: relative; }
+  td.day.gym          { background: var(--pink); }
+  td.day.gym:hover    { background: #e879f9; }
+  td.day.today        { border-color: var(--today) !important; }
+  td.day.future       { background: transparent; border: 1px solid #1a1a1c; cursor: default; }
+  td.day.future:hover { border-color: #1a1a1c; transform: none; }
+  td.day.invalid      { background: transparent; border: none; cursor: default; }
+  td.day.invalid:hover{ transform: none; }
+
+  /* show day number on hover */
+  td.day:not(.future):not(.invalid):hover::after {
+    content: attr(data-day);
+    color: rgba(255,255,255,0.6);
+    font-size: 8px;
+    pointer-events: none;
+  }
+  td.day.gym:hover::after { color: rgba(255,255,255,0.9); }
+
+  /* month freq bar inside month label column */
+  .month-row { display: flex; align-items: center; gap: 8px; }
+  .freq-bar-wrap { width: 52px; height: 4px; background: var(--dimmer); border-radius: 2px; overflow: hidden; }
+  .freq-bar      { height: 100%; background: var(--pink); border-radius: 2px; transition: width .4s ease; }
+  .freq-pct      { font-size: 9px; color: var(--dim); width: 28px; text-align: right; }
+
+  /* ── tooltip ── */
+  #tooltip {
+    position: fixed; pointer-events: none;
+    background: #1c1c20; border: 1px solid var(--border);
+    border-radius: 5px; padding: 7px 12px;
+    font-size: 10px; color: var(--text);
+    opacity: 0; transition: opacity .15s;
+    z-index: 100; white-space: nowrap;
+  }
+  #tooltip.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>GYM LOG</h1>
+  <span class="year">2026</span>
+</div>
+<div class="sub">click any day to log it · click again to unlog</div>
+
+<div class="cards">
+  <div class="card"><div class="lbl">TOTAL SESSIONS</div><div class="val" id="s-total">–</div><div class="s">this year</div></div>
+  <div class="card"><div class="lbl">THIS MONTH</div><div class="val" id="s-month" style="color:var(--pink)">–</div><div class="s" id="s-month-sub">–</div></div>
+  <div class="card"><div class="lbl">THIS WEEK</div><div class="val" id="s-week">–</div><div class="s">Mon – today</div></div>
+  <div class="card"><div class="lbl">BEST MONTH</div><div class="val" id="s-best">–</div><div class="s" id="s-best-sub">–</div></div>
+  <div class="card"><div class="lbl">CURRENT STREAK</div><div class="val" id="s-streak">–</div><div class="s">days in a row</div></div>
+</div>
+
+<div class="cal-wrap">
+  <table id="cal-table"></table>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ── INITIAL DATA ──────────────────────────────────────────────────────────────
+const SEED = new Set([
+  "2026-01-12","2026-01-13","2026-01-15","2026-01-17","2026-01-18",
+  "2026-01-19","2026-01-20","2026-01-21","2026-01-24","2026-01-26",
+  "2026-01-27","2026-01-29",
+  "2026-02-03","2026-02-08","2026-02-11","2026-02-12","2026-02-15",
+  "2026-02-16","2026-02-19","2026-02-23","2026-02-24","2026-02-25","2026-02-27",
+  "2026-03-03","2026-03-04","2026-03-24","2026-03-26","2026-03-27",
+  "2026-03-29","2026-03-30","2026-03-31",
+  "2026-04-02","2026-04-03","2026-04-04","2026-04-07","2026-04-08",
+  "2026-04-09","2026-04-14","2026-04-15","2026-04-16","2026-04-19",
+  "2026-04-20","2026-04-21",
+]);
+
+const MONTHS = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE",
+                "JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+function loadGym() {
+  const saved = localStorage.getItem("gym2026");
+  const extra = saved ? new Set(JSON.parse(saved)) : new Set();
+  // merge seed + saved; saved may also have removals stored as "removed" key
+  const removed = localStorage.getItem("gym2026_removed");
+  const removedSet = removed ? new Set(JSON.parse(removed)) : new Set();
+  const merged = new Set([...SEED, ...extra]);
+  for (const r of removedSet) merged.delete(r);
+  return merged;
+}
+
+function saveGym(gymSet) {
+  // store only additions beyond seed and removals from seed
+  const added   = [...gymSet].filter(d => !SEED.has(d));
+  const removed = [...SEED].filter(d => !gymSet.has(d));
+  localStorage.setItem("gym2026",         JSON.stringify(added));
+  localStorage.setItem("gym2026_removed", JSON.stringify(removed));
+}
+
+let gym = loadGym();
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+const now      = new Date();
+const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+function daysInMonth(m) { // m = 0-indexed
+  return new Date(2026, m+1, 0).getDate();
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function dateStr(m, d) { return `2026-${pad(m+1)}-${pad(d)}`; }
+function isFuture(m, d) {
+  return new Date(2026, m, d) > now;
+}
+
+// ── BUILD TABLE ───────────────────────────────────────────────────────────────
+function buildTable() {
+  const table = document.getElementById("cal-table");
+  table.innerHTML = "";
+
+  // header row: day numbers 1–31
+  const thead = table.createTHead();
+  const hr    = thead.insertRow();
+  const corner = document.createElement("th");
+  corner.className = "corner";
+  hr.appendChild(corner);
+  for (let d = 1; d <= 31; d++) {
+    const th = document.createElement("th");
+    th.textContent = d;
+    hr.appendChild(th);
+  }
+
+  // one row per month
+  const tbody = table.createTBody();
+  for (let m = 0; m < 12; m++) {
+    const tr    = tbody.insertRow();
+    const days  = daysInMonth(m);
+    const isCur = (m === now.getMonth());
+
+    // month label cell
+    const lbl = document.createElement("td");
+    lbl.className = "month-label" + (isCur ? " current" : "");
+    lbl.innerHTML = `
+      <div class="month-row">
+        <span>${MONTHS[m].slice(0,3)}</span>
+        <div class="freq-bar-wrap"><div class="freq-bar" id="bar-${m}" style="width:0%"></div></div>
+        <span class="freq-pct" id="pct-${m}"></span>
+      </div>`;
+    tr.appendChild(lbl);
+
+    // day cells
+    for (let d = 1; d <= 31; d++) {
+      const td = document.createElement("td");
+      if (d > days) {
+        td.className = "day invalid";
+      } else {
+        const key    = dateStr(m, d);
+        const future = isFuture(m, d);
+        td.className = "day" +
+          (future            ? " future" : "") +
+          (gym.has(key)      ? " gym"    : "") +
+          (key === todayStr  ? " today"  : "");
+        td.dataset.key = key;
+        td.dataset.day = d;
+
+        if (!future) {
+          td.addEventListener("click",       () => toggleDay(td, key));
+          td.addEventListener("mouseenter",  (e) => showTip(e, key, m, d));
+          td.addEventListener("mousemove",   (e) => moveTip(e));
+          td.addEventListener("mouseleave",  hideTip);
+        }
+      }
+      tr.appendChild(td);
+    }
+  }
+}
+
+// ── TOGGLE ────────────────────────────────────────────────────────────────────
+function toggleDay(td, key) {
+  if (gym.has(key)) {
+    gym.delete(key);
+    td.classList.remove("gym");
+  } else {
+    gym.add(key);
+    td.classList.add("gym");
+  }
+  saveGym(gym);
+  updateStats();
+  updateBars();
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+function updateStats() {
+  const total = gym.size;
+  document.getElementById("s-total").textContent = total;
+
+  // this month
+  const cm  = now.getMonth();
+  const mSessions = [...gym].filter(d => {
+    const mo = parseInt(d.split("-")[1]) - 1;
+    return mo === cm;
+  }).length;
+  const elapsed = now.getDate();
+  document.getElementById("s-month").textContent    = mSessions;
+  document.getElementById("s-month-sub").textContent= `${Math.round(mSessions/elapsed*100)}% of days`;
+
+  // this week (Mon to today)
+  const dow   = (now.getDay() + 6) % 7;
+  const weekStart = new Date(now); weekStart.setDate(now.getDate() - dow);
+  const wSessions = [...gym].filter(d => {
+    const dd = new Date(d); return dd >= weekStart && dd <= now;
+  }).length;
+  document.getElementById("s-week").textContent = wSessions;
+
+  // best month by frequency
+  let bestM = 0, bestF = 0;
+  for (let m = 0; m < 12; m++) {
+    const days    = daysInMonth(m);
+    const el      = m < now.getMonth() ? days : (m === now.getMonth() ? now.getDate() : 0);
+    if (el === 0) continue;
+    const count   = [...gym].filter(d => parseInt(d.split("-")[1])-1 === m).length;
+    const f       = count / el;
+    if (f > bestF) { bestF = f; bestM = m; }
+  }
+  const bestCount = [...gym].filter(d => parseInt(d.split("-")[1])-1 === bestM).length;
+  document.getElementById("s-best").textContent    = `${Math.round(bestF*100)}%`;
+  document.getElementById("s-best-sub").textContent= `${MONTHS[bestM].slice(0,3)} · ${bestCount} sessions`;
+
+  // streak
+  let streak = 0;
+  const check = new Date(now);
+  while (true) {
+    const k = `${check.getFullYear()}-${pad(check.getMonth()+1)}-${pad(check.getDate())}`;
+    if (gym.has(k)) { streak++; check.setDate(check.getDate()-1); }
+    else break;
+  }
+  document.getElementById("s-streak").textContent = streak;
+}
+
+// ── FREQUENCY BARS ────────────────────────────────────────────────────────────
+function updateBars() {
+  const maxFreq = (() => {
+    let m = 0;
+    for (let mo = 0; mo < 12; mo++) {
+      const el = mo < now.getMonth() ? daysInMonth(mo) : (mo === now.getMonth() ? now.getDate() : 0);
+      if (!el) continue;
+      const c = [...gym].filter(d => parseInt(d.split("-")[1])-1 === mo).length;
+      m = Math.max(m, c/el);
+    }
+    return m || 1;
+  })();
+
+  for (let m = 0; m < 12; m++) {
+    const el  = m < now.getMonth() ? daysInMonth(m) : (m === now.getMonth() ? now.getDate() : 0);
+    const bar = document.getElementById(`bar-${m}`);
+    const pct = document.getElementById(`pct-${m}`);
+    if (!el) { bar.style.width = "0%"; pct.textContent = ""; continue; }
+    const count = [...gym].filter(d => parseInt(d.split("-")[1])-1 === m).length;
+    const freq  = count / el;
+    bar.style.width   = `${(freq/maxFreq)*100}%`;
+    pct.textContent   = `${Math.round(freq*100)}%`;
+  }
+}
+
+// ── TOOLTIP ───────────────────────────────────────────────────────────────────
+const tip = document.getElementById("tooltip");
+function showTip(e, key, m, d) {
+  const logged = gym.has(key);
+  const isToday = key === todayStr;
+  tip.innerHTML = `<b>${MONTHS[m].slice(0,3)} ${d}</b>${isToday ? " · today" : ""}<br>${logged ? "✦ gym day — click to unlog" : "click to log gym"}`;
+  tip.classList.add("show");
+  moveTip(e);
+}
+function moveTip(e) {
+  tip.style.left = (e.clientX + 14) + "px";
+  tip.style.top  = (e.clientY - 36) + "px";
+}
+function hideTip() { tip.classList.remove("show"); }
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+buildTable();
+updateStats();
+updateBars();
+</script>
+</body>
+</html>
