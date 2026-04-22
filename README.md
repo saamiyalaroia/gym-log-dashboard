@@ -1,7 +1,7 @@
 # gym-log-dashboard
 Minimalist yearly gym tracker — click any day to log it, click again to unlog. Saves to browser storage, auto-unlocks future days as they arrive. No server, no login, no dependencies.
 
-<img width="600" alt="image" src="https://github.com/user-attachments/assets/b0c20fbe-0c14-4167-b134-72e81c1119e2" />
+<img width="1437" height="488" alt="image" src="https://github.com/user-attachments/assets/962f1d98-f24b-4a66-85a9-293d504c93ef" />
 
 ## Live site
 
