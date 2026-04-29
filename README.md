@@ -29,7 +29,7 @@ This is a single static `index.html` file with no build step or dependencies.
 **GitHub Pages:**
 1. Upload `index.html` to any GitHub repository
 2. Go to Settings → Pages → Deploy from branch → main → Save
-3. Your site is live at `https://saamiyalaroia.github.io/gym-log-dashboard`
+3. Your site is live 
 
 **Local:**
 Just double-click `index.html` — it opens directly in your browser.
